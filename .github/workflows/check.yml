@@ -1,0 +1,22 @@
+name: Windows checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test dependency
+        run: python -m pip install "numpy>=2.2,<3"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Check PowerShell syntax
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'launcher.ps1'), [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { throw ($errors | Out-String) }
+      - name: Compile Python sources
+        run: python -m compileall -q app.py speech_engine.py bootstrap.py tests

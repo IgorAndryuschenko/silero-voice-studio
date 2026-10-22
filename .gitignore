@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+output/
+*.pt
+.setup/
+.tools/
+models/
+dist/
+*.part
+.env
+.env.*
