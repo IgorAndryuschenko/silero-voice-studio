@@ -19,4 +19,4 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'launcher.ps1'), [ref]$null, [ref]$errors) | Out-Null
           if ($errors) { throw ($errors | Out-String) }
       - name: Compile Python sources
-        run: python -m compileall -q app.py speech_engine.py bootstrap.py tests
+        run: python -m compileall -q app.py speech_engine.py bootstrap.py model_catalog.py tests

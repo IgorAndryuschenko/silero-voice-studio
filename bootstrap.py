@@ -12,11 +12,12 @@ import subprocess
 import sys
 import time
 import urllib.request
+from model_catalog import CIS_PATH
 
 ROOT = Path(__file__).resolve().parent
-MODEL_PATH = ROOT / 'models' / 'silero-v5_ru.pt'
-MODEL_URL = 'https://models.silero.ai/models/tts/ru/v5_ru.pt'
-MODEL_SHA256 = '7ba04d42340fe0398042eed2e0d12d62e23096d626b1b9feff4dcb1309197ab4'
+MODEL_PATH = CIS_PATH
+MODEL_URL = 'https://models.silero.ai/models/tts/ru/v5_cis_base.pt'
+MODEL_SHA256 = 'ba41b18f6a707ad93605a162998865e7c087153d2e010a26dd02229dab0e672a'
 PROBE = '''
 import sys, tkinter, torch, numpy, scipy
 from importlib.metadata import version
@@ -56,7 +57,7 @@ def ensure_model(destination: Path = MODEL_PATH, legacy: Path | None = None):
             print('Reusing a verified local model (copy only).', flush=True)
             shutil.copyfile(legacy, partial)
         else:
-            print('Downloading Silero V5 (~139 MiB) from models.silero.ai...', flush=True)
+            print('Downloading Silero v5_cis_base MIT (~88 MiB) from models.silero.ai...', flush=True)
             request = urllib.request.Request(MODEL_URL, headers={'User-Agent': 'SileroVoiceStudio/1.0'})
             with urllib.request.urlopen(request, timeout=60) as response, partial.open('wb') as target:
                 total = int(response.headers.get('Content-Length', 0))
@@ -148,7 +149,7 @@ def main():
         ensure_model()
         print('Checking actual speech synthesis...', flush=True)
         from speech_engine import Engine, Options
-        _, audio, speakers = Engine().generate('Проверка.', MODEL_PATH, Options())
+        _, audio, speakers = Engine().generate('Пров+ерка.', MODEL_PATH, Options())
         if len(audio) == 0:
             raise RuntimeError('The model produced empty audio.')
         print('Speech check: OK | Voices: ' + ', '.join(speakers), flush=True)

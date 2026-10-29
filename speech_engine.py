@@ -7,16 +7,17 @@ import os
 from pathlib import Path
 import re
 import wave
+from model_catalog import CIS_PATH, DEFAULT_SPEAKER
 
 ROOT = Path(__file__).resolve().parent
 LOCAL_MODEL = ROOT / "models" / "silero-v5_ru.pt"
 LEGACY_MODEL = Path(os.environ.get("LOCALAPPDATA", str(ROOT))) / "SumomoScreenPet" / "voice_models" / "silero-v5_ru.pt"
-DEFAULT_MODEL = LOCAL_MODEL if LOCAL_MODEL.is_file() else LEGACY_MODEL
+DEFAULT_MODEL = CIS_PATH
 
 
 @dataclass(frozen=True)
 class Options:
-    speaker: str = "kseniya"
+    speaker: str = DEFAULT_SPEAKER
     sample_rate: int = 48000
     rate: str = "medium"
     pitch: str = "medium"
@@ -25,8 +26,8 @@ class Options:
     padding_ms: int = 100
     fade_ms: int = 5
     normalize: bool = False
-    accent: bool = True
-    yo: bool = True
+    accent: bool = False
+    yo: bool = False
 
 
 def render_ssml(text: str, options: Options) -> str:

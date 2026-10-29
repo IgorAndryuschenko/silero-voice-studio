@@ -12,6 +12,7 @@ from tkinter import filedialog, messagebox, ttk
 import winsound
 
 from speech_engine import DEFAULT_MODEL, ROOT, Engine, Options, write_wav
+from model_catalog import CIS_LABEL, RU_LABEL, CIS_PATH, RU_PATH, CIS_VOICES, RU_VOICES, DEFAULT_SPEAKER
 
 RATES = {"Очень медленно": "x-slow", "Медленно": "slow", "Обычно": "medium", "Быстро": "fast", "Очень быстро": "x-fast"}
 PITCHES = {"Очень низкий": "x-low", "Низкий": "low", "Обычный": "medium", "Высокий": "high", "Очень высокий": "x-high"}
@@ -40,15 +41,17 @@ class App:
         style.map("Accent.TButton", background=[("active", "#5140b5")])
         style.configure("TCheckbutton", background="#f4f5fa", font=("Segoe UI", 10))
         self.mode = tk.StringVar(value="Простой")
-        self.speaker = tk.StringVar(value="kseniya")
+        self.speaker = tk.StringVar(value=DEFAULT_SPEAKER)
+        self.model_choice = tk.StringVar(value=CIS_LABEL)
+        self.model_hint = tk.StringVar()
         self.model_path = tk.StringVar(value=str(DEFAULT_MODEL))
         self.rate = tk.StringVar(value="Обычно")
         self.pitch = tk.StringVar(value="Обычный")
         self.sample_rate = tk.StringVar(value="48000")
         self.trim = tk.BooleanVar(value=True)
         self.normalize = tk.BooleanVar(value=False)
-        self.accent = tk.BooleanVar(value=True)
-        self.yo = tk.BooleanVar(value=True)
+        self.accent = tk.BooleanVar(value=False)
+        self.yo = tk.BooleanVar(value=False)
         self.threshold = tk.StringVar(value="-48")
         self.padding = tk.StringVar(value="100")
         self.fade = tk.StringVar(value="5")
@@ -59,10 +62,17 @@ class App:
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="Студия голоса", style="Title.TLabel").pack(anchor="w")
         ttk.Label(body, text="Silero V5 · текст → речь · локально", style="Hint.TLabel").pack(anchor="w", pady=(2, 16))
+        model_bar = ttk.Frame(body)
+        model_bar.pack(fill="x", pady=(0, 8))
+        ttk.Label(model_bar, text="Модель").pack(side="left")
+        self.model_box = ttk.Combobox(model_bar, textvariable=self.model_choice, values=(CIS_LABEL, RU_LABEL), state="readonly", width=30)
+        self.model_box.pack(side="left", padx=10)
+        self.model_box.bind('<<ComboboxSelected>>', self.select_model)
+        ttk.Label(body, textvariable=self.model_hint, style="Hint.TLabel", wraplength=790).pack(anchor='w', pady=(0, 8))
         toolbar = ttk.Frame(body)
         toolbar.pack(fill="x")
         ttk.Label(toolbar, text="Голос").pack(side="left")
-        self.voice_box = ttk.Combobox(toolbar, textvariable=self.speaker, values=("kseniya", "xenia", "baya", "aidar", "eugene"), state="readonly", width=14)
+        self.voice_box = ttk.Combobox(toolbar, textvariable=self.speaker, values=CIS_VOICES, state="readonly", width=18)
         self.voice_box.pack(side="left", padx=(10, 24))
         ttk.Label(toolbar, text="Интерфейс").pack(side="left")
         modes = ttk.Combobox(toolbar, textvariable=self.mode, values=("Простой", "Расширенный"), state="readonly", width=18)
@@ -76,7 +86,7 @@ class App:
         scrollbar = ttk.Scrollbar(editor, command=self.text.yview)
         scrollbar.pack(side="right", fill="y")
         self.text.configure(yscrollcommand=scrollbar.set)
-        self.text.insert("1.0", "Привет! Я Ада. Давай превратим твои слова в голос.")
+        self.text.insert("1.0", "Прив+ет! +Я +Ада. Дав+ай преврат+им тво+и слов+а в г+олос.")
         self.text.bind("<Control-Return>", lambda _: self.generate())
 
         self.advanced = ttk.Frame(body, padding=(0, 10))
@@ -92,8 +102,12 @@ class App:
             ttk.Combobox(synth, textvariable=variable, values=values, state="readonly", width=width).pack(side="left", padx=(0, 14))
         checks = ttk.Frame(self.advanced)
         checks.pack(fill="x", pady=5)
+        self.auto_checks = []
         for label, variable in [("Автоударения", self.accent), ("Автоматическая «ё»", self.yo), ("Нормализация пика до −1 dBFS", self.normalize)]:
-            ttk.Checkbutton(checks, text=label, variable=variable).pack(side="left", padx=(0, 14))
+            check = ttk.Checkbutton(checks, text=label, variable=variable)
+            check.pack(side="left", padx=(0, 14))
+            if variable is not self.normalize:
+                self.auto_checks.append(check)
         edges = ttk.Frame(self.advanced)
         edges.pack(fill="x", pady=5)
         ttk.Checkbutton(edges, text="Обрезать тишину по краям", variable=self.trim).pack(side="left", padx=(0, 12))
@@ -120,7 +134,19 @@ class App:
         ttk.Label(body, textvariable=self.status, style="Hint.TLabel", wraplength=790).pack(anchor="w")
         ttk.Label(body, text="Ctrl + Enter — создать · В простом режиме используются стандартные настройки", style="Hint.TLabel").pack(anchor="w", pady=(8, 0))
         root.protocol("WM_DELETE_WINDOW", self.close)
+        self.select_model()
         root.after(100, self.poll)
+
+    def select_model(self, _=None):
+        cis = self.model_choice.get() == CIS_LABEL
+        self.model_path.set(str(CIS_PATH if cis else RU_PATH))
+        self.voice_box.configure(values=CIS_VOICES if cis else RU_VOICES)
+        self.speaker.set(DEFAULT_SPEAKER if cis else 'kseniya')
+        self.accent.set(not cis)
+        self.yo.set(not cis)
+        for check in self.auto_checks:
+            check.configure(state='disabled' if cis else 'normal')
+        self.model_hint.set('MIT · коммерческое использование разрешено. Ударения задавайте вручную: прив+ет, к+ошка. Автоударений нет.' if cis else 'Некоммерческая лицензия. Автоударения доступны. Для коммерческого проекта выбирайте v5_cis_base.')
 
     def toggle_advanced(self, _=None):
         if self.mode.get() == "Расширенный":
@@ -131,13 +157,23 @@ class App:
             self.root.geometry("900x820")
 
     def choose_model(self):
+        if self.busy:
+            return
         path = filedialog.askopenfilename(title="Модель Silero", filetypes=[("Silero PyTorch", "*.pt")])
         if path:
-            self.model_path.set(path)
+            selected = Path(path).resolve()
+            if selected in (CIS_PATH.resolve(), RU_PATH.resolve()):
+                self.model_choice.set(CIS_LABEL if selected == CIS_PATH.resolve() else RU_LABEL)
+                self.select_model()
+            else:
+                self.model_path.set(path)
+                self.model_choice.set('Пользовательская')
+                self.model_hint.set('Пользовательская модель: проверьте её собственную лицензию и требования к тексту.')
 
     def options(self):
         if self.mode.get() == "Простой":
-            return Options(speaker=self.speaker.get())
+            auto = self.model_choice.get() == RU_LABEL
+            return Options(speaker=self.speaker.get(), accent=auto, yo=auto)
         threshold, padding, fade = float(self.threshold.get()), int(self.padding.get()), int(self.fade.get())
         if not (-80 <= threshold <= -20 and 30 <= padding <= 500 and 0 <= fade <= 20):
             raise ValueError("Порог: −80…−20 dBFS, запас: 30…500 мс, сглаживание: 0…20 мс.")
@@ -163,6 +199,8 @@ class App:
             messagebox.showinfo("Проверь настройки", str(exc))
             return
         self.busy = True
+        self.model_box.configure(state='disabled')
+        self.voice_box.configure(state='disabled')
         winsound.PlaySound(None, 0)
         self.generate_button.configure(state="disabled")
         self.play_button.configure(state="disabled")
@@ -181,7 +219,7 @@ class App:
             path, raw_path = out / f"{name}.wav", out / f"{name}-original.wav"
             write_wav(raw_path, raw, options.sample_rate)
             write_wav(path, audio, options.sample_rate)
-            metadata = {"text": text, "model": str(model_path), "settings": asdict(options),
+            metadata = {"text": text, "model": str(model_path), "model_license": 'MIT' if model_path.resolve() == CIS_PATH.resolve() else 'see model license', "settings": asdict(options),
                         "seconds": len(audio) / options.sample_rate, "original": raw_path.name}
             path.with_suffix(".json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
             self.events.put(("done", (path, audio, metadata, time.perf_counter() - started, speakers)))
@@ -198,6 +236,8 @@ class App:
                     self.status.set(value)
                     continue
                 self.busy = False
+                self.model_box.configure(state='readonly')
+                self.voice_box.configure(state='readonly')
                 self.progress.stop()
                 self.generate_button.configure(state="normal")
                 if event == "done":
